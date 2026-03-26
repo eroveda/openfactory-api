@@ -29,6 +29,10 @@ public class Workpack extends PanacheEntityBase {
     @Column(name = "execution_plan", columnDefinition = "TEXT")
     public String executionPlan;
 
+    /** Contenido original ingresado por el usuario — necesario para reshape */
+    @Column(name = "source_content", columnDefinition = "TEXT")
+    public String sourceContent;
+
     @Column(name = "step_count")
     public Integer stepCount;
 

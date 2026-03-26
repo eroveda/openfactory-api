@@ -1,5 +1,7 @@
 package io.openfactory.api.handoff.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.user.model.User;
 import io.openfactory.api.workpack.model.Workpack;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
@@ -17,11 +19,19 @@ public class Handoff extends PanacheEntityBase {
 
     @ManyToOne
     @JoinColumn(name = "workpack_id", nullable = false)
+    @JsonIgnore
     public Workpack workpack;
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
+    @JsonIgnore
     public User owner;
+
+    @JsonProperty("workpackId")
+    public UUID getWorkpackId() { return workpack != null ? workpack.id : null; }
+
+    @JsonProperty("ownerId")
+    public UUID getOwnerId() { return owner != null ? owner.id : null; }
 
     @Column(name = "intended_executor")
     public String intendedExecutor;
@@ -41,7 +51,11 @@ public class Handoff extends PanacheEntityBase {
 
     @ManyToOne
     @JoinColumn(name = "approved_by")
+    @JsonIgnore
     public User approvedBy;
+
+    @JsonProperty("approvedById")
+    public UUID getApprovedById() { return approvedBy != null ? approvedBy.id : null; }
 
     @Column(name = "approved_at")
     public LocalDateTime approvedAt;

@@ -29,7 +29,7 @@ public class WorkpackMapper {
     ObjectMapper objectMapper;
 
     @Transactional
-    public Workpack toEntity(String title, UUID ownerId,
+    public Workpack toEntity(String title, UUID ownerId, String sourceContent,
                               IdeaBrief brief,
                               ExecutionPlan plan,
                               List<io.openfactory.core.box.model.Box> boxes,
@@ -41,6 +41,7 @@ public class WorkpackMapper {
         w.title = title;
         w.owner = owner;
         w.stage = WorkpackStage.SHAPE;
+        w.sourceContent = sourceContent;
         w.persist();
 
         // 2 — Brief
@@ -105,6 +106,78 @@ public class WorkpackMapper {
         }
 
         return w;
+    }
+
+    /** Elimina los hijos existentes de un workpack y los recrea con nuevos datos del pipeline. */
+    @Transactional
+    public void replaceChildren(Workpack w,
+                                 IdeaBrief brief,
+                                 ExecutionPlan plan,
+                                 List<io.openfactory.core.box.model.Box> boxes,
+                                 HandoffPackage handoff) {
+        io.openfactory.api.brief.model.Brief.delete("workpack.id = ?1", w.id);
+        io.openfactory.api.box.model.Box.delete("workpack.id = ?1", w.id);
+        io.openfactory.api.plan.model.ExecutionPlanEntity.delete("workpack.id = ?1", w.id);
+        io.openfactory.api.handoff.model.Handoff.delete("workpack.id = ?1", w.id);
+
+        if (brief != null) {
+            io.openfactory.api.brief.model.Brief b = new io.openfactory.api.brief.model.Brief();
+            b.workpack        = w;
+            b.title           = brief.title();
+            b.mainIdea        = brief.mainIdea();
+            b.objective       = brief.objective();
+            b.actors          = toJson(brief.actors());
+            b.scopeIncludes   = toJson(brief.scope().includes());
+            b.scopeExcludes   = toJson(brief.scope().excludes());
+            b.constraints     = toJson(brief.constraints());
+            b.successCriteria = toJson(brief.successCriteria());
+            b.domainFacts     = toJson(brief.domainFacts());
+            b.status          = brief.isReady()
+                ? io.openfactory.api.brief.model.BriefStatus.READY
+                : io.openfactory.api.brief.model.BriefStatus.DRAFT;
+            b.persist();
+        }
+
+        if (boxes != null) {
+            for (int i = 0; i < boxes.size(); i++) {
+                io.openfactory.core.box.model.Box cb = boxes.get(i);
+                io.openfactory.api.box.model.Box box = new io.openfactory.api.box.model.Box();
+                box.workpack          = w;
+                box.nodeId            = cb.getNodeId();
+                box.title             = cb.getTitle();
+                box.purpose           = cb.getPurpose();
+                box.inputContext      = cb.getInputContext();
+                box.expectedOutput    = cb.getExpectedOutput();
+                box.handoff           = cb.getHandoff();
+                box.instructions      = toJson(cb.getInstructions());
+                box.constraints       = toJson(cb.getConstraints());
+                box.dependencies      = toJson(cb.getDependencies());
+                box.acceptanceCriteria= toJson(cb.getAcceptanceCriteria());
+                box.status            = io.openfactory.api.box.model.BoxStatus.READY;
+                box.orderIndex        = i;
+                box.persist();
+            }
+        }
+
+        if (plan != null) {
+            io.openfactory.api.plan.model.ExecutionPlanEntity ep = new io.openfactory.api.plan.model.ExecutionPlanEntity();
+            ep.workpack         = w;
+            ep.version          = plan.version();
+            ep.status           = toPlanStatus(plan.validationStatus());
+            ep.steps            = toJson(plan.steps());
+            ep.weakDependencies = toJson(plan.weakDependencies());
+            ep.findings         = toJson(plan.findings());
+            ep.persist();
+        }
+
+        if (handoff != null) {
+            io.openfactory.api.handoff.model.Handoff h = new io.openfactory.api.handoff.model.Handoff();
+            h.workpack         = w;
+            h.owner            = w.owner;
+            h.assumptions      = toJson(handoff.getAssumptions());
+            h.handoffNotes     = handoff.getHandoffNotes();
+            h.persist();
+        }
     }
 
     // -----------------------------------------------------------------------

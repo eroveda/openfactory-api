@@ -1,5 +1,7 @@
 package io.openfactory.api.brief.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.workpack.model.Workpack;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
@@ -16,7 +18,11 @@ public class Brief extends PanacheEntityBase {
 
     @ManyToOne
     @JoinColumn(name = "workpack_id", nullable = false)
+    @JsonIgnore
     public Workpack workpack;
+
+    @JsonProperty("workpackId")
+    public UUID getWorkpackId() { return workpack != null ? workpack.id : null; }
 
     public String title;
 

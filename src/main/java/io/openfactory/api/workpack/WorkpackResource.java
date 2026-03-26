@@ -1,5 +1,6 @@
 package io.openfactory.api.workpack;
 
+import io.openfactory.api.workpack.WorkpackService.ExportView;
 import io.openfactory.api.workpack.model.Workpack;
 import io.openfactory.api.user.model.User;
 import jakarta.inject.Inject;
@@ -18,6 +19,33 @@ public class WorkpackResource {
 
     @Inject
     WorkpackService workpackService;
+
+    // -----------------------------------------------------------------------
+    // Pipeline endpoints
+    // -----------------------------------------------------------------------
+
+    @POST
+    @Path("/ingest")
+    public Workpack ingest(@Context ContainerRequestContext ctx, IngestRequest req) throws Exception {
+        User user = (User) ctx.getProperty("currentUser");
+        return workpackService.ingest(req.title(), user.id, req.content());
+    }
+
+    @POST
+    @Path("/{id}/shape")
+    public Workpack shape(@PathParam("id") UUID id) throws Exception {
+        return workpackService.reshape(id);
+    }
+
+    @GET
+    @Path("/{id}/export")
+    public ExportView export(@PathParam("id") UUID id) {
+        return workpackService.getExport(id);
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD
+    // -----------------------------------------------------------------------
 
     @GET
     public List<Workpack> listAll(@Context ContainerRequestContext ctx) {
@@ -43,5 +71,14 @@ public class WorkpackResource {
         return workpackService.updateTitle(id, req.title());
     }
 
+    @DELETE
+    @Path("/{id}")
+    @jakarta.transaction.Transactional
+    public void delete(@PathParam("id") UUID id) {
+        Workpack w = workpackService.findById(id);
+        w.delete();
+    }
+
     public record UpdateTitleRequest(String title) {}
+    public record IngestRequest(String title, String content) {}
 }
