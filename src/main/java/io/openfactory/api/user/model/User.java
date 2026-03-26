@@ -1,5 +1,6 @@
 package io.openfactory.api.user.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public class User extends PanacheEntityBase {
     public UUID id;
 
     @Column(name = "supabase_id", unique = true, nullable = false)
+    @JsonIgnore
     public String supabaseId;
 
     @Column(unique = true, nullable = false)

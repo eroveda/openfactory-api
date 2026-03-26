@@ -1,5 +1,7 @@
 package io.openfactory.api.workpack.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.user.model.User;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
@@ -20,7 +22,16 @@ public class Workpack extends PanacheEntityBase {
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
+    @JsonIgnore
     public User owner;
+
+    @JsonProperty("owner")
+    public OwnerView getOwnerView() {
+        if (owner == null) return null;
+        return new OwnerView(owner.id, owner.name, owner.email, owner.avatarUrl);
+    }
+
+    public record OwnerView(UUID id, String name, String email, String avatarUrl) {}
 
     @Enumerated(EnumType.STRING)
     public WorkpackStage stage = WorkpackStage.RAW;
@@ -31,10 +42,18 @@ public class Workpack extends PanacheEntityBase {
 
     /** Contenido original ingresado por el usuario — necesario para reshape */
     @Column(name = "source_content", columnDefinition = "TEXT")
+    @JsonIgnore
     public String sourceContent;
 
     @Column(name = "step_count")
     public Integer stepCount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "processing_status")
+    public ProcessingStatus processingStatus = ProcessingStatus.DONE;
+
+    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    public String failureReason;
 
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();

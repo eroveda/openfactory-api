@@ -4,6 +4,7 @@ import io.openfactory.api.box.model.Box;
 import io.openfactory.api.brief.model.Brief;
 import io.openfactory.api.handoff.model.Handoff;
 import io.openfactory.api.plan.model.ExecutionPlanEntity;
+import io.openfactory.api.workpack.model.ProcessingStatus;
 import io.openfactory.api.workpack.model.Workpack;
 import io.openfactory.api.workpack.model.WorkpackStage;
 import io.openfactory.core.box.BoxGenerator;
@@ -24,6 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
+import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.util.List;
 import java.util.UUID;
@@ -52,19 +54,68 @@ public class WorkpackService {
     @Inject
     ExecutionPlanner executionPlanner;
 
+    @Inject
+    ManagedExecutor executor;
+
     // -----------------------------------------------------------------------
-    // Pipeline — ingest (full run)
+    // Pipeline — ingest async
     // -----------------------------------------------------------------------
 
     /**
-     * Corre el pipeline completo sobre el contenido raw y persiste el resultado.
-     * Los llamados LLM ocurren fuera de transacción; la persistencia es atómica.
+     * Crea el workpack en estado PROCESSING y lanza el pipeline en background.
+     * El cliente hace polling a GET /api/workpacks/{id} hasta que processingStatus == DONE.
      */
-    public Workpack ingest(String title, UUID ownerId, String content) throws Exception {
-        PipelineData data = runPipeline(title, content);
-        HandoffPackage handoff = coreHandoffService.create(
-            data.snapshot.projectId(), data.brief, data.plan);
-        return mapper.toEntity(title, ownerId, content, data.brief, data.plan, data.boxes, handoff);
+    @Transactional
+    public Workpack ingest(String title, UUID ownerId, String content) {
+        Workpack w = createPending(title, ownerId, content);
+        UUID workpackId = w.id;
+        executor.runAsync(() -> runPipelineAsync(workpackId, title, ownerId, content));
+        return w;
+    }
+
+    @Transactional
+    Workpack createPending(String title, UUID ownerId, String content) {
+        io.openfactory.api.user.model.User owner =
+            io.openfactory.api.user.model.User.findById(ownerId);
+        Workpack w = new Workpack();
+        w.title            = title;
+        w.owner            = owner;
+        w.stage            = WorkpackStage.RAW;
+        w.processingStatus = ProcessingStatus.PROCESSING;
+        w.sourceContent    = content;
+        w.persist();
+        return w;
+    }
+
+    void runPipelineAsync(UUID workpackId, String title, UUID ownerId, String content) {
+        try {
+            PipelineData data = runPipeline(title, content);
+            HandoffPackage handoff = coreHandoffService.create(
+                data.snapshot.projectId(), data.brief, data.plan);
+            finalizePipeline(workpackId, title, ownerId, content, data, handoff);
+        } catch (Exception e) {
+            markFailed(workpackId, e.getMessage());
+        }
+    }
+
+    @Transactional
+    void finalizePipeline(UUID workpackId, String title, UUID ownerId, String content,
+                           PipelineData data, HandoffPackage handoff) {
+        Workpack w = Workpack.findById(workpackId);
+        mapper.buildChildren(w, data.brief, data.plan, data.boxes, handoff);
+        w.processingStatus = ProcessingStatus.DONE;
+        w.stage            = WorkpackStage.SHAPE;
+        w.persist();
+    }
+
+    @Transactional
+    void markFailed(UUID workpackId, String reason) {
+        Workpack w = Workpack.findById(workpackId);
+        if (w != null) {
+            w.processingStatus = ProcessingStatus.FAILED;
+            w.failureReason    = reason;
+            w.persist();
+        }
     }
 
     // -----------------------------------------------------------------------

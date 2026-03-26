@@ -108,6 +108,74 @@ public class WorkpackMapper {
         return w;
     }
 
+    /**
+     * Crea los hijos (Brief, Boxes, Plan, Handoff) para un workpack que ya existe en DB.
+     * Usado por el pipeline asíncrono.
+     */
+    @Transactional
+    public void buildChildren(Workpack w,
+                               IdeaBrief brief,
+                               ExecutionPlan plan,
+                               List<io.openfactory.core.box.model.Box> boxes,
+                               HandoffPackage handoff) {
+        if (brief != null) {
+            Brief b = new Brief();
+            b.workpack        = w;
+            b.title           = brief.title();
+            b.mainIdea        = brief.mainIdea();
+            b.objective       = brief.objective();
+            b.actors          = toJson(brief.actors());
+            b.scopeIncludes   = toJson(brief.scope().includes());
+            b.scopeExcludes   = toJson(brief.scope().excludes());
+            b.constraints     = toJson(brief.constraints());
+            b.successCriteria = toJson(brief.successCriteria());
+            b.domainFacts     = toJson(brief.domainFacts());
+            b.status          = brief.isReady() ? BriefStatus.READY : BriefStatus.DRAFT;
+            b.persist();
+        }
+
+        if (boxes != null) {
+            for (int i = 0; i < boxes.size(); i++) {
+                io.openfactory.core.box.model.Box cb = boxes.get(i);
+                Box box = new Box();
+                box.workpack          = w;
+                box.nodeId            = cb.getNodeId();
+                box.title             = cb.getTitle();
+                box.purpose           = cb.getPurpose();
+                box.inputContext      = cb.getInputContext();
+                box.expectedOutput    = cb.getExpectedOutput();
+                box.handoff           = cb.getHandoff();
+                box.instructions      = toJson(cb.getInstructions());
+                box.constraints       = toJson(cb.getConstraints());
+                box.dependencies      = toJson(cb.getDependencies());
+                box.acceptanceCriteria= toJson(cb.getAcceptanceCriteria());
+                box.status            = BoxStatus.READY;
+                box.orderIndex        = i;
+                box.persist();
+            }
+        }
+
+        if (plan != null) {
+            ExecutionPlanEntity ep = new ExecutionPlanEntity();
+            ep.workpack         = w;
+            ep.version          = plan.version();
+            ep.status           = toPlanStatus(plan.validationStatus());
+            ep.steps            = toJson(plan.steps());
+            ep.weakDependencies = toJson(plan.weakDependencies());
+            ep.findings         = toJson(plan.findings());
+            ep.persist();
+        }
+
+        if (handoff != null) {
+            Handoff h = new Handoff();
+            h.workpack         = w;
+            h.owner            = w.owner;
+            h.assumptions      = toJson(handoff.getAssumptions());
+            h.handoffNotes     = handoff.getHandoffNotes();
+            h.persist();
+        }
+    }
+
     /** Elimina los hijos existentes de un workpack y los recrea con nuevos datos del pipeline. */
     @Transactional
     public void replaceChildren(Workpack w,

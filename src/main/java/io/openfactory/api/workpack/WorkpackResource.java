@@ -43,6 +43,12 @@ public class WorkpackResource {
         return workpackService.getExport(id);
     }
 
+    @GET
+    @Path("/{id}/detail")
+    public ExportView detail(@PathParam("id") UUID id) {
+        return workpackService.getExport(id);
+    }
+
     // -----------------------------------------------------------------------
     // CRUD
     // -----------------------------------------------------------------------
