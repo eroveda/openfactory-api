@@ -18,6 +18,11 @@
   </properties>
   <dependencyManagement>
     <dependencies>
+        <dependency>
+            <groupId>io.openfactory</groupId>
+            <artifactId>openfactory-core-lib</artifactId>
+            <version>0.1.0-alpha</version>
+        </dependency>
       <dependency>
         <groupId>${quarkus.platform.group-id}</groupId>
         <artifactId>${quarkus.platform.artifact-id}</artifactId>
