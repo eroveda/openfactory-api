@@ -2,6 +2,7 @@ package io.openfactory.api.workpack;
 
 import io.openfactory.api.auth.DevUserService;
 import io.openfactory.api.user.model.User;
+import io.openfactory.api.workpack.model.ProcessingStatus;
 import io.openfactory.api.workpack.model.Workpack;
 import io.openfactory.api.workpack.model.WorkpackStage;
 import io.quarkus.test.InjectMock;
@@ -43,7 +44,7 @@ class WorkpackResourceTest {
     @Test
     void listReturnsWorkpacks() {
         Workpack w = workpack("My Project", WorkpackStage.SHAPE);
-        when(workpackService.listByOwner(any())).thenReturn(List.of(w));
+        when(workpackService.listForUser(any())).thenReturn(List.of(w));
 
         given()
             .when().get("/api/workpacks")
@@ -55,7 +56,7 @@ class WorkpackResourceTest {
 
     @Test
     void listReturnsEmptyList() {
-        when(workpackService.listByOwner(any())).thenReturn(List.of());
+        when(workpackService.listForUser(any())).thenReturn(List.of());
 
         given()
             .when().get("/api/workpacks")
@@ -131,6 +132,90 @@ class WorkpackResourceTest {
             .then()
             .statusCode(200)
             .body("title", is("New Title"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Async ingest
+    // -----------------------------------------------------------------------
+
+    @Test
+    void ingestReturnsProcessingStatus() {
+        Workpack w = workpack("New Pack", WorkpackStage.RAW);
+        w.processingStatus = ProcessingStatus.PROCESSING;
+        when(workpackService.ingest(eq("New Pack"), any(), eq("Some content"))).thenReturn(w);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\": \"New Pack\", \"content\": \"Some content\"}")
+            .when().post("/api/workpacks/ingest")
+            .then()
+            .statusCode(200)
+            .body("processingStatus", is("PROCESSING"));
+    }
+
+    @Test
+    void ingestReturns400WhenTitleBlank() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\": \"\", \"content\": \"Some content\"}")
+            .when().post("/api/workpacks/ingest")
+            .then()
+            .statusCode(400)
+            .body("error", is("Bad Request"))
+            .body("message", containsString("title is required"));
+    }
+
+    @Test
+    void ingestReturns400WhenContentBlank() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\": \"My Pack\", \"content\": \"\"}")
+            .when().post("/api/workpacks/ingest")
+            .then()
+            .statusCode(400)
+            .body("error", is("Bad Request"))
+            .body("message", containsString("content is required"));
+    }
+
+    @Test
+    void ingestReturns400WhenTitleTooLong() {
+        String longTitle = "a".repeat(501);
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\": \"" + longTitle + "\", \"content\": \"Some content\"}")
+            .when().post("/api/workpacks/ingest")
+            .then()
+            .statusCode(400)
+            .body("error", is("Bad Request"))
+            .body("message", containsString("500 characters"));
+    }
+
+    @Test
+    void ingestReturns400WhenContentTooLong() {
+        String longContent = "a".repeat(50_001);
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\": \"My Pack\", \"content\": \"" + longContent + "\"}")
+            .when().post("/api/workpacks/ingest")
+            .then()
+            .statusCode(400)
+            .body("error", is("Bad Request"))
+            .body("message", containsString("50,000 characters"));
+    }
+
+    @Test
+    void shapeReturnsProcessingStatus() {
+        UUID id = UUID.randomUUID();
+        Workpack w = workpack("Pack", WorkpackStage.SHAPE);
+        w.processingStatus = ProcessingStatus.PROCESSING;
+        when(workpackService.reshape(id)).thenReturn(w);
+
+        given()
+            .contentType(ContentType.JSON)
+            .when().post("/api/workpacks/" + id + "/shape")
+            .then()
+            .statusCode(200)
+            .body("processingStatus", is("PROCESSING"));
     }
 
     // -----------------------------------------------------------------------

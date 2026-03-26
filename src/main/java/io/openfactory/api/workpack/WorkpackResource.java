@@ -26,14 +26,22 @@ public class WorkpackResource {
 
     @POST
     @Path("/ingest")
-    public Workpack ingest(@Context ContainerRequestContext ctx, IngestRequest req) throws Exception {
+    public Workpack ingest(@Context ContainerRequestContext ctx, IngestRequest req) {
+        if (req == null || req.title() == null || req.title().isBlank())
+            throw new IllegalArgumentException("title is required");
+        if (req.content() == null || req.content().isBlank())
+            throw new IllegalArgumentException("content is required");
+        if (req.title().length() > 500)
+            throw new IllegalArgumentException("title must not exceed 500 characters");
+        if (req.content().length() > 50_000)
+            throw new IllegalArgumentException("content must not exceed 50,000 characters");
         User user = (User) ctx.getProperty("currentUser");
         return workpackService.ingest(req.title(), user.id, req.content());
     }
 
     @POST
     @Path("/{id}/shape")
-    public Workpack shape(@PathParam("id") UUID id) throws Exception {
+    public Workpack shape(@PathParam("id") UUID id) {
         return workpackService.reshape(id);
     }
 
@@ -56,7 +64,7 @@ public class WorkpackResource {
     @GET
     public List<Workpack> listAll(@Context ContainerRequestContext ctx) {
         User user = (User) ctx.getProperty("currentUser");
-        return workpackService.listByOwner(user.id);
+        return workpackService.listForUser(user.id);
     }
 
     @GET

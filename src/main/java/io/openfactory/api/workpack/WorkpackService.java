@@ -123,20 +123,40 @@ public class WorkpackService {
     // -----------------------------------------------------------------------
 
     /**
-     * Re-corre el pipeline usando el source_content almacenado, reemplaza
-     * brief, boxes, plan y handoff del workpack.
+     * Marca el workpack como PROCESSING y re-corre el pipeline en background.
      */
-    public Workpack reshape(UUID id) throws Exception {
+    @Transactional
+    public Workpack reshape(UUID id) {
         Workpack w = findById(id);
         if (w.sourceContent == null || w.sourceContent.isBlank()) {
             throw new IllegalStateException(
-                "Workpack " + id + " no tiene source_content para reshape.");
+                "Workpack " + id + " has no source content for reshaping.");
         }
-        PipelineData data = runPipeline(w.title, w.sourceContent);
-        HandoffPackage handoff = coreHandoffService.create(
-            data.snapshot.projectId(), data.brief, data.plan);
-        mapper.replaceChildren(w, data.brief, data.plan, data.boxes, handoff);
+        w.processingStatus = ProcessingStatus.PROCESSING;
+        w.persist();
+        String title   = w.title;
+        String content = w.sourceContent;
+        executor.runAsync(() -> runReshapeAsync(id, title, content));
         return w;
+    }
+
+    void runReshapeAsync(UUID workpackId, String title, String content) {
+        try {
+            PipelineData data = runPipeline(title, content);
+            HandoffPackage handoff = coreHandoffService.create(
+                data.snapshot.projectId(), data.brief, data.plan);
+            finalizeReshape(workpackId, data, handoff);
+        } catch (Exception e) {
+            markFailed(workpackId, e.getMessage());
+        }
+    }
+
+    @Transactional
+    void finalizeReshape(UUID workpackId, PipelineData data, HandoffPackage handoff) {
+        Workpack w = Workpack.findById(workpackId);
+        mapper.replaceChildren(w, data.brief, data.plan, data.boxes, handoff);
+        w.processingStatus = ProcessingStatus.DONE;
+        w.persist();
     }
 
     // -----------------------------------------------------------------------
@@ -154,6 +174,8 @@ public class WorkpackService {
             w.id,
             w.title,
             w.stage,
+            w.processingStatus,
+            w.failureReason,
             brief == null ? null : new ExportView.BriefData(
                 brief.id, brief.title, brief.mainIdea, brief.objective, brief.status.name()),
             boxes.stream().map(b -> new ExportView.BoxData(
@@ -169,6 +191,8 @@ public class WorkpackService {
         UUID workpackId,
         String title,
         WorkpackStage stage,
+        ProcessingStatus processingStatus,
+        String failureReason,
         BriefData brief,
         List<BoxData> boxes,
         PlanData plan,
@@ -208,8 +232,15 @@ public class WorkpackService {
         return Workpack.listAll();
     }
 
-    public List<Workpack> listByOwner(UUID ownerId) {
-        return Workpack.findByOwner(ownerId);
+    public List<Workpack> listForUser(UUID userId) {
+        List<Workpack> owned  = Workpack.findByOwner(userId);
+        List<Workpack> shared = Workpack.findSharedWith(userId);
+        if (shared.isEmpty()) return owned;
+        List<Workpack> result = new java.util.ArrayList<>(owned);
+        shared.stream()
+            .filter(s -> owned.stream().noneMatch(o -> o.id.equals(s.id)))
+            .forEach(result::add);
+        return result;
     }
 
     // -----------------------------------------------------------------------
