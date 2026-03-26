@@ -1,10 +1,12 @@
 <?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.openfactory</groupId>
   <artifactId>openfactory-api</artifactId>
   <version>0.1.0-alpha</version>
+
   <properties>
     <compiler-plugin.version>3.15.0</compiler-plugin.version>
     <maven.compiler.release>21</maven.compiler.release>
@@ -16,13 +18,9 @@
     <skipITs>true</skipITs>
     <surefire-plugin.version>3.5.4</surefire-plugin.version>
   </properties>
+
   <dependencyManagement>
     <dependencies>
-        <dependency>
-            <groupId>io.openfactory</groupId>
-            <artifactId>openfactory-core-lib</artifactId>
-            <version>0.1.0-alpha</version>
-        </dependency>
       <dependency>
         <groupId>${quarkus.platform.group-id}</groupId>
         <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -32,6 +30,7 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -61,12 +60,21 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
     </dependency>
+
+    <!-- API-011: openfactory-core-lib -->
+    <dependency>
+      <groupId>io.openfactory</groupId>
+      <artifactId>openfactory-core-lib</artifactId>
+      <version>0.1.0-alpha</version>
+    </dependency>
+
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <plugin>
@@ -124,6 +132,7 @@
       </plugin>
     </plugins>
   </build>
+
   <profiles>
     <profile>
       <id>native</id>
@@ -138,4 +147,5 @@
       </properties>
     </profile>
   </profiles>
+
 </project>

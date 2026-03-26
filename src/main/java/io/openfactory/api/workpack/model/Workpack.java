@@ -25,6 +25,13 @@ public class Workpack extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     public WorkpackStage stage = WorkpackStage.RAW;
 
+    /** ExecutionPlan serializado como JSON — poblado por core-lib */
+    @Column(name = "execution_plan", columnDefinition = "TEXT")
+    public String executionPlan;
+
+    @Column(name = "step_count")
+    public Integer stepCount;
+
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();
 
@@ -39,5 +46,10 @@ public class Workpack extends PanacheEntityBase {
         return list(
             "id IN (SELECT workpack_id FROM workpack_members WHERE user_id = ?1)",
             userId);
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
