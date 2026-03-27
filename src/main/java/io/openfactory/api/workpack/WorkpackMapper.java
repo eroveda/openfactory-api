@@ -55,9 +55,10 @@ public class WorkpackMapper {
             b.scopeIncludes   = toJson(brief.scope().includes());
             b.scopeExcludes   = toJson(brief.scope().excludes());
             b.constraints     = toJson(brief.constraints());
-            b.successCriteria = toJson(brief.successCriteria());
-            b.domainFacts     = toJson(brief.domainFacts());
-            b.status          = brief.isReady() ? BriefStatus.READY : BriefStatus.DRAFT;
+            b.successCriteria    = toJson(brief.successCriteria());
+            b.domainFacts        = toJson(brief.domainFacts());
+            b.readinessSignals   = toJson(brief.readinessSignals());
+            b.status             = toBriefStatus(brief.status());
             b.persist();
         }
 
@@ -128,9 +129,10 @@ public class WorkpackMapper {
             b.scopeIncludes   = toJson(brief.scope().includes());
             b.scopeExcludes   = toJson(brief.scope().excludes());
             b.constraints     = toJson(brief.constraints());
-            b.successCriteria = toJson(brief.successCriteria());
-            b.domainFacts     = toJson(brief.domainFacts());
-            b.status          = brief.isReady() ? BriefStatus.READY : BriefStatus.DRAFT;
+            b.successCriteria    = toJson(brief.successCriteria());
+            b.domainFacts        = toJson(brief.domainFacts());
+            b.readinessSignals   = toJson(brief.readinessSignals());
+            b.status             = toBriefStatus(brief.status());
             b.persist();
         }
 
@@ -198,11 +200,10 @@ public class WorkpackMapper {
             b.scopeIncludes   = toJson(brief.scope().includes());
             b.scopeExcludes   = toJson(brief.scope().excludes());
             b.constraints     = toJson(brief.constraints());
-            b.successCriteria = toJson(brief.successCriteria());
-            b.domainFacts     = toJson(brief.domainFacts());
-            b.status          = brief.isReady()
-                ? io.openfactory.api.brief.model.BriefStatus.READY
-                : io.openfactory.api.brief.model.BriefStatus.DRAFT;
+            b.successCriteria    = toJson(brief.successCriteria());
+            b.domainFacts        = toJson(brief.domainFacts());
+            b.readinessSignals   = toJson(brief.readinessSignals());
+            b.status             = toBriefStatus(brief.status());
             b.persist();
         }
 
@@ -249,6 +250,15 @@ public class WorkpackMapper {
     }
 
     // -----------------------------------------------------------------------
+
+    private BriefStatus toBriefStatus(io.openfactory.core.brief.model.BriefStatus s) {
+        if (s == null) return BriefStatus.DRAFT;
+        return switch (s) {
+            case READY      -> BriefStatus.READY;
+            case INCOMPLETE -> BriefStatus.INCOMPLETE;
+            default         -> BriefStatus.DRAFT;
+        };
+    }
 
     private PlanStatus toPlanStatus(io.openfactory.core.plan.model.PlanValidationStatus s) {
         if (s == null) return PlanStatus.VALID;
