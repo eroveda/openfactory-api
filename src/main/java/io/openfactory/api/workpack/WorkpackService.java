@@ -62,26 +62,19 @@ public class WorkpackService {
     // -----------------------------------------------------------------------
 
     /**
-     * Crea el workpack en estado PROCESSING y lanza el pipeline en background.
-     * El cliente hace polling a GET /api/workpacks/{id} hasta que processingStatus == DONE.
+     * Crea el workpack en estado DONE/RAW sin correr el pipeline.
+     * El usuario agrega pins en Raw/Define y luego dispara el pipeline
+     * explícitamente con POST /shape.
      */
     @Transactional
     public Workpack ingest(String title, UUID ownerId, String content) {
-        Workpack w = createPending(title, ownerId, content);
-        UUID workpackId = w.id;
-        executor.runAsync(() -> runPipelineAsync(workpackId, title, ownerId, content));
-        return w;
-    }
-
-    @Transactional
-    Workpack createPending(String title, UUID ownerId, String content) {
         io.openfactory.api.user.model.User owner =
             io.openfactory.api.user.model.User.findById(ownerId);
         Workpack w = new Workpack();
         w.title            = title;
         w.owner            = owner;
         w.stage            = WorkpackStage.RAW;
-        w.processingStatus = ProcessingStatus.PROCESSING;
+        w.processingStatus = ProcessingStatus.DONE;
         w.sourceContent    = content;
         w.persist();
         return w;
