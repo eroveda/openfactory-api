@@ -2,13 +2,18 @@ package io.openfactory.api.handoff;
 
 import io.openfactory.api.handoff.model.ApprovalStatus;
 import io.openfactory.api.handoff.model.Handoff;
+import io.openfactory.api.inbox.model.InboxItem;
+import io.openfactory.api.inbox.model.InboxType;
 import io.openfactory.api.user.model.User;
+import io.openfactory.api.workpack.model.Workpack;
+import io.openfactory.api.workpack.model.WorkpackMember;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Path("/api/workpacks/{workpackId}/handoff")
@@ -51,6 +56,31 @@ public class HandoffResource {
         handoff.approvedAt     = LocalDateTime.now();
         handoff.reviewNotes    = null;
         handoff.persist();
+        return handoff;
+    }
+
+    @POST
+    @Path("/request-approval")
+    @Transactional
+    public Handoff requestApproval(@PathParam("workpackId") UUID workpackId,
+                                   @Context ContainerRequestContext ctx) {
+        Handoff handoff = Handoff.findByWorkpack(workpackId);
+        if (handoff == null) throw new NotFoundException("Handoff not found for workpack: " + workpackId);
+
+        Workpack workpack = handoff.workpack;
+        User currentUser = (User) ctx.getProperty("currentUser");
+
+        List<WorkpackMember> members = WorkpackMember.findByWorkpack(workpackId);
+        for (WorkpackMember member : members) {
+            if (member.user.id.equals(currentUser.id)) continue;
+            InboxItem notification = new InboxItem();
+            notification.user     = member.user;
+            notification.workpack = workpack;
+            notification.type     = InboxType.APPROVAL_REQUESTED;
+            notification.message  = currentUser.name + " requested your approval on \"" + workpack.title + "\".";
+            notification.persist();
+        }
+
         return handoff;
     }
 
