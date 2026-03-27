@@ -24,6 +24,7 @@ REST API del proyecto **openFactory** — convierte ideas en workpacks estructur
 | `POST` | `/api/workpacks/{id}/members` | Invitar colaborador por email |
 | `GET`  | `/api/me` | Perfil del usuario autenticado |
 | `GET`  | `/api/inbox` | Notificaciones del usuario |
+| `GET`  | `/api/workpacks/{id}/download` | Descarga ZIP con brief, boxes, plan y handoff |
 
 ## Pipeline async
 
@@ -72,7 +73,7 @@ Flyway corre automáticamente al iniciar. Archivos en `src/main/resources/db/mig
 
 | Ticket | Descripción | Estado |
 |--------|-------------|--------|
-| API-001 | CORS extension | Pendiente |
+| API-001 | CORS extension | ✅ |
 | API-002 | AuthFilter JWT Supabase | ✅ |
 | API-003 | UserResource | ✅ |
 | API-004 | PinResource | ✅ |
@@ -83,4 +84,4 @@ Flyway corre automáticamente al iniciar. Archivos en `src/main/resources/db/mig
 | API-009 | InboxResource | ✅ |
 | API-010 | Colaboración / Members | ✅ |
 | API-011 | Pipeline Orchestrator | ✅ |
-| API-012 | Package download ZIP | Pendiente |
+| API-012 | Package download ZIP | ✅ |
