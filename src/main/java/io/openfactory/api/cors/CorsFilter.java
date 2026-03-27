@@ -20,9 +20,22 @@ public class CorsFilter implements ContainerRequestFilter, ContainerResponseFilt
 
     @Override
     public void filter(ContainerRequestContext req) {
-        // Handle preflight OPTIONS requests
+        // Handle preflight OPTIONS requests — must include CORS headers in the aborted response
         if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
-            req.abortWith(Response.ok().build());
+            String origin = req.getHeaderString("Origin");
+            Set<String> allowed = Arrays.stream(allowedOriginsConfig.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+
+            Response.ResponseBuilder rb = Response.ok();
+            if (origin != null && (allowed.contains(origin) || allowed.contains("*"))) {
+                rb.header("Access-Control-Allow-Origin",      origin)
+                  .header("Access-Control-Allow-Credentials", "true")
+                  .header("Access-Control-Allow-Methods",     "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+                  .header("Access-Control-Allow-Headers",     "Authorization,Content-Type,Accept")
+                  .header("Access-Control-Expose-Headers",    "Content-Disposition");
+            }
+            req.abortWith(rb.build());
         }
     }
 

@@ -67,7 +67,7 @@ public class Workpack extends PanacheEntityBase {
 
     public static List<Workpack> findSharedWith(UUID userId) {
         return list(
-            "id IN (SELECT workpack_id FROM workpack_members WHERE user_id = ?1)",
+            "id IN (SELECT wm.id.workpackId FROM WorkpackMember wm WHERE wm.id.userId = ?1)",
             userId);
     }
 

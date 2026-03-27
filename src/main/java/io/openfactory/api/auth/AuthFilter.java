@@ -1,10 +1,12 @@
 package io.openfactory.api.auth;
 
 import io.openfactory.api.user.model.User;
+import io.quarkus.runtime.LaunchMode;
 import io.smallrye.jwt.auth.principal.JWTParser;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -22,9 +24,6 @@ public class AuthFilter implements ContainerRequestFilter {
     @Inject
     UserSyncService userSyncService;
 
-    @ConfigProperty(name = "quarkus.profile")
-    String profile;
-
     @ConfigProperty(name = "openfactory.auth.bypass", defaultValue = "false")
     boolean authBypass;
 
@@ -34,7 +33,7 @@ public class AuthFilter implements ContainerRequestFilter {
 
         if (path.startsWith("/q/") || path.equals("/health")) return;
 
-        if ("dev".equals(profile) || authBypass) {
+        if (LaunchMode.current().isDevOrTest() || authBypass) {
             User devUser = devUserService.getOrCreateDevUser();
             ctx.setProperty("currentUser", devUser);
             return;
@@ -58,8 +57,14 @@ public class AuthFilter implements ContainerRequestFilter {
     }
 
     private void abort(ContainerRequestContext ctx, String message) {
-        ctx.abortWith(Response.status(401)
-            .entity("{\"error\":\"" + message + "\"}")
-            .build());
+        String origin = ctx.getHeaderString("Origin");
+        Response.ResponseBuilder rb = Response.status(401)
+            .type(MediaType.APPLICATION_JSON)
+            .entity("{\"error\":\"" + message + "\"}");
+        if (origin != null) {
+            rb.header("Access-Control-Allow-Origin",      origin)
+              .header("Access-Control-Allow-Credentials", "true");
+        }
+        ctx.abortWith(rb.build());
     }
 }
