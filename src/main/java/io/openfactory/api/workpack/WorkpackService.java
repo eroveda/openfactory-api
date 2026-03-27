@@ -27,6 +27,8 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.context.ManagedExecutor;
 
+import io.openfactory.api.pin.model.Pin;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,7 +84,7 @@ public class WorkpackService {
 
     void runPipelineAsync(UUID workpackId, String title, UUID ownerId, String content) {
         try {
-            PipelineData data = runPipeline(title, content);
+            PipelineData data = runPipeline(workpackId, title, content);
             HandoffPackage handoff = coreHandoffService.create(
                 data.snapshot.projectId(), data.brief, data.plan);
             finalizePipeline(workpackId, title, ownerId, content, data, handoff);
@@ -135,7 +137,7 @@ public class WorkpackService {
 
     void runReshapeAsync(UUID workpackId, String title, String content) {
         try {
-            PipelineData data = runPipeline(title, content);
+            PipelineData data = runPipeline(workpackId, title, content);
             HandoffPackage handoff = coreHandoffService.create(
                 data.snapshot.projectId(), data.brief, data.plan);
             finalizeReshape(workpackId, data, handoff);
@@ -288,14 +290,33 @@ public class WorkpackService {
         ExecutionPlan plan
     ) {}
 
-    private PipelineData runPipeline(String title, String content) throws Exception {
-        String sessionId  = UUID.randomUUID().toString();
-        String projectId  = UUID.randomUUID().toString();
+    /**
+     * Construye la lista de fuentes para el pipeline.
+     * Primer mensaje: sourceContent original del workpack.
+     * Mensajes siguientes: pins del usuario en Raw/Define.
+     * Preparado para recibir más tipos de fuente (archivos, links) en el futuro.
+     */
+    private List<SessionMessage> buildSources(UUID workpackId, String sourceContent) {
+        List<SessionMessage> messages = new ArrayList<>();
+        long ts = System.currentTimeMillis();
 
-        List<SessionMessage> messages = List.of(
-            new SessionMessage(UUID.randomUUID().toString(), content, null,
-                System.currentTimeMillis())
-        );
+        if (sourceContent != null && !sourceContent.isBlank())
+            messages.add(new SessionMessage(UUID.randomUUID().toString(), sourceContent, null, ts));
+
+        List<Pin> pins = Pin.findByWorkpack(workpackId);
+        for (Pin pin : pins) {
+            if (pin.content != null && !pin.content.isBlank())
+                messages.add(new SessionMessage(UUID.randomUUID().toString(), pin.content, null, ts));
+        }
+
+        return messages;
+    }
+
+    private PipelineData runPipeline(UUID workpackId, String title, String sourceContent) throws Exception {
+        String sessionId = UUID.randomUUID().toString();
+        String projectId = UUID.randomUUID().toString();
+
+        List<SessionMessage> messages = buildSources(workpackId, sourceContent);
 
         IngestionSnapshot snapshot  = ingestionService.buildSnapshot(sessionId, projectId, messages);
         SourceDocument    sourceDoc = ingestionService.buildSourceDocument(snapshot);
