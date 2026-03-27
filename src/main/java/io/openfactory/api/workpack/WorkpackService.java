@@ -27,6 +27,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.context.ManagedExecutor;
 
+import io.openfactory.api.attachment.model.Attachment;
 import io.openfactory.api.pin.model.Pin;
 import java.util.ArrayList;
 import java.util.List;
@@ -307,6 +308,15 @@ public class WorkpackService {
         for (Pin pin : pins) {
             if (pin.content != null && !pin.content.isBlank())
                 messages.add(new SessionMessage(UUID.randomUUID().toString(), pin.content, null, ts));
+        }
+
+        // Text attachments (images/audio have no contentText yet)
+        List<Attachment> attachments = Attachment.findByWorkpack(workpackId);
+        for (Attachment a : attachments) {
+            if (a.contentText != null && !a.contentText.isBlank()) {
+                String msg = "## Attached file: " + a.fileName + "\n\n" + a.contentText;
+                messages.add(new SessionMessage(UUID.randomUUID().toString(), msg, null, ts));
+            }
         }
 
         return messages;
