@@ -94,8 +94,64 @@ public class OpenRouterChatAdapter implements ConversationalLlmPort {
                 .put("model", model)
                 .put("max_tokens", maxTokens);
         body.set("messages", messagesNode);
+        body.set("tools", buildToolDefinitions());
 
         return objectMapper.writeValueAsString(body);
+    }
+
+    /**
+     * Tool definitions enviadas a OpenRouter en cada request.
+     * Deben estar alineadas con los handlers en ChatToolExecutor.
+     */
+    private com.fasterxml.jackson.databind.node.ArrayNode buildToolDefinitions() {
+        var tools = objectMapper.createArrayNode();
+
+        tools.add(tool("save_context", "Persist something the user just clarified as a context pin",
+                param("content", "string", "The content to save as a pin"),
+                param("type", "string", "Pin type: intent | actor | constraint | scope | domain_fact")));
+
+        tools.add(tool("update_brief", "Update a specific field of the workpack brief",
+                param("field", "string", "Field name: title | mainIdea | objective | actors | scopeIncludes | scopeExcludes | constraints | successCriteria"),
+                param("value", "string", "New value for the field (plain string or JSON array)")));
+
+        tools.add(tool("mark_define_ready", "Mark the workpack as ready to proceed to Shape stage", new String[0]));
+
+        tools.add(tool("update_box", "Update a specific field of a work box",
+                param("boxId", "string", "UUID of the box to update"),
+                param("field", "string", "Field: title | purpose | instructions | constraints | acceptanceCriteria"),
+                param("value", "string", "New value")));
+
+        tools.add(tool("suggest_split", "Suggest splitting a box that is too broad into two focused boxes",
+                param("boxId", "string", "UUID of the box to split"),
+                param("reason", "string", "Why this box should be split"),
+                param("box1Title", "string", "Title of the first resulting box"),
+                param("box2Title", "string", "Title of the second resulting box")));
+
+        return tools;
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode tool(String name, String description, String[]... params) {
+        var props = objectMapper.createObjectNode();
+        for (String[] p : params) {
+            props.putObject(p[0]).put("type", p[1]).put("description", p[2]);
+        }
+
+        var required = objectMapper.createArrayNode();
+        for (String[] p : params) required.add(p[0]);
+
+        var fn = objectMapper.createObjectNode()
+                .put("name", name)
+                .put("description", description);
+        var schema = objectMapper.createObjectNode().put("type", "object");
+        schema.set("properties", props);
+        schema.set("required", required);
+        fn.set("parameters", schema);
+
+        return objectMapper.createObjectNode().put("type", "function").set("function", fn);
+    }
+
+    private String[] param(String name, String type, String description) {
+        return new String[]{name, type, description};
     }
 
     private ChatResponse parseResponse(String json) throws Exception {
