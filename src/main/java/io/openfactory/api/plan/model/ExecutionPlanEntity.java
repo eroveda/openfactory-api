@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.workpack.model.Workpack;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -29,12 +31,15 @@ public class ExecutionPlanEntity extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     public PlanStatus status = PlanStatus.VALID;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String steps = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "weak_dependencies", columnDefinition = "jsonb")
     public String weakDependencies = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String findings = "[]";
 

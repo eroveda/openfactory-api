@@ -21,6 +21,7 @@ import io.openfactory.core.plan.ExecutionPlanner;
 import io.openfactory.core.plan.model.ExecutionPlan;
 import io.openfactory.core.tree.OutlineService;
 import io.openfactory.core.tree.model.NodeTree;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -61,6 +62,9 @@ public class WorkpackService {
      *  when called from background threads (CompletableFuture / ForkJoinPool). */
     @Inject
     WorkpackService self;
+
+    @Inject
+    ObjectMapper json;
 
     // -----------------------------------------------------------------------
     // Pipeline — ingest async
@@ -124,6 +128,32 @@ public class WorkpackService {
         Workpack w = Workpack.findById(workpackId);
         if (w != null) {
             w.pipelineStep = step;
+            w.persist();
+        }
+    }
+
+    @Transactional
+    void appendPipelineLog(UUID workpackId, List<String> entries) {
+        Workpack w = Workpack.findById(workpackId);
+        if (w == null) return;
+        try {
+            var list = new java.util.ArrayList<>(
+                json.readerForListOf(String.class).<List<String>>readValue(
+                    w.pipelineLog != null ? w.pipelineLog : "[]"));
+            list.addAll(entries);
+            w.pipelineLog = json.writeValueAsString(list);
+            w.persist();
+        } catch (Exception e) {
+            // log append is best-effort — never fail the pipeline
+        }
+    }
+
+    @Transactional
+    void clearPipelineLog(UUID workpackId) {
+        Workpack w = Workpack.findById(workpackId);
+        if (w != null) {
+            w.pipelineLog = "[]";
+            w.pipelineStep = null;
             w.persist();
         }
     }
@@ -314,7 +344,8 @@ public class WorkpackService {
      * Mensajes siguientes: pins del usuario en Raw/Define.
      * Preparado para recibir más tipos de fuente (archivos, links) en el futuro.
      */
-    private List<SessionMessage> buildSources(UUID workpackId, String sourceContent) {
+    @Transactional
+    List<SessionMessage> buildSources(UUID workpackId, String sourceContent) {
         List<SessionMessage> messages = new ArrayList<>();
         long ts = System.currentTimeMillis();
 
@@ -343,22 +374,39 @@ public class WorkpackService {
         String sessionId = UUID.randomUUID().toString();
         String projectId = UUID.randomUUID().toString();
 
+        self.clearPipelineLog(workpackId);
+
         self.updatePipelineStep(workpackId, "Analyzing content…");
-        List<SessionMessage> messages = buildSources(workpackId, sourceContent);
+        List<SessionMessage> messages = self.buildSources(workpackId, sourceContent);
         IngestionSnapshot snapshot  = ingestionService.buildSnapshot(sessionId, projectId, messages);
         SourceDocument    sourceDoc = ingestionService.buildSourceDocument(snapshot);
+        self.appendPipelineLog(workpackId, List.of(
+            "📥 " + messages.size() + " source" + (messages.size() == 1 ? "" : "s") + " loaded"));
 
         self.updatePipelineStep(workpackId, "Evaluating brief…");
         IdeaBrief brief = briefBuilder.build(snapshot, sourceDoc);
+        self.appendPipelineLog(workpackId, List.of(
+            "✔ Brief ready — " + brief.readinessSignals().score()
+                + "/" + brief.readinessSignals().total() + " signals clear"));
 
         self.updatePipelineStep(workpackId, "Generating outline…");
         NodeTree outline = outlineService.generateOutline(sourceDoc);
+        List<String> outlineLog = new ArrayList<>();
+        outlineLog.add("✔ Outline — " + outline.getByLevel(1).size() + " topics");
+        outline.getByLevel(1).forEach(n -> outlineLog.add("  · " + n.getTitle()));
+        self.appendPipelineLog(workpackId, outlineLog);
 
         self.updatePipelineStep(workpackId, "Creating work boxes…");
         BoxGenerationResult boxResult = boxGenerator.generateFromTree(outline, sourceDoc);
+        List<String> boxLog = new ArrayList<>();
+        boxLog.add("✔ " + boxResult.boxes().size() + " boxes created");
+        boxResult.boxes().forEach(b -> boxLog.add("  · " + b.getTitle()));
+        self.appendPipelineLog(workpackId, boxLog);
 
         self.updatePipelineStep(workpackId, "Planning execution sequence…");
         ExecutionPlan plan = executionPlanner.plan(boxResult.boxes(), outline, snapshot.projectId());
+        self.appendPipelineLog(workpackId, List.of(
+            "✔ Plan ready — " + plan.steps().size() + " steps"));
 
         self.updatePipelineStep(workpackId, "Packaging handoff…");
         return new PipelineData(snapshot, sourceDoc, brief, outline, boxResult.boxes(), plan);

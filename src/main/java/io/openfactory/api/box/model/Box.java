@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.workpack.model.Workpack;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -34,30 +36,36 @@ public class Box extends PanacheEntityBase {
     @Column(columnDefinition = "TEXT")
     public String purpose;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String scope = "{}";
 
     @Column(name = "input_context", columnDefinition = "TEXT")
     public String inputContext;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String instructions = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String constraints = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String dependencies = "[]";
 
     @Column(name = "expected_output", columnDefinition = "TEXT")
     public String expectedOutput;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "acceptance_criteria", columnDefinition = "jsonb")
     public String acceptanceCriteria = "[]";
 
     @Column(columnDefinition = "TEXT")
     public String handoff;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "execution_hints", columnDefinition = "jsonb")
     public String executionHints = "{}";
 

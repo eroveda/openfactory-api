@@ -6,6 +6,8 @@ import io.openfactory.api.user.model.User;
 import io.openfactory.api.workpack.model.Workpack;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -36,6 +38,7 @@ public class Handoff extends PanacheEntityBase {
     @Column(name = "intended_executor")
     public String intendedExecutor;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     public String assumptions = "[]";
 

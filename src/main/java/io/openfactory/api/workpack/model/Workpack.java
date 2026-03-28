@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openfactory.api.user.model.User;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -57,6 +59,10 @@ public class Workpack extends PanacheEntityBase {
 
     @Column(name = "pipeline_step", columnDefinition = "TEXT")
     public String pipelineStep;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "pipeline_log", columnDefinition = "jsonb")
+    public String pipelineLog = "[]";
 
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();
