@@ -35,4 +35,4 @@ CREATE POLICY "public can read attachments"
 CREATE POLICY "authenticated users can delete own attachments"
     ON storage.objects FOR DELETE
     TO authenticated
-    USING (bucket_id = 'attachments' AND auth.uid()::text = owner);
+    USING (bucket_id = 'attachments' AND auth.uid() = owner);
