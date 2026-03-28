@@ -64,6 +64,11 @@ public class Workpack extends PanacheEntityBase {
     @Column(name = "pipeline_log", columnDefinition = "jsonb")
     public String pipelineLog = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "chat_history", columnDefinition = "jsonb")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String chatHistory = "[]";
+
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();
 
