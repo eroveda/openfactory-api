@@ -57,6 +57,11 @@ public class WorkpackService {
     @Inject
     ExecutionPlanner executionPlanner;
 
+    /** Self-reference through the CDI proxy — ensures @Transactional interceptors fire
+     *  when called from background threads (CompletableFuture / ForkJoinPool). */
+    @Inject
+    WorkpackService self;
+
     // -----------------------------------------------------------------------
     // Pipeline — ingest async
     // -----------------------------------------------------------------------
@@ -85,11 +90,11 @@ public class WorkpackService {
             PipelineData data = runPipeline(workpackId, title, content);
             HandoffPackage handoff = coreHandoffService.create(
                 data.snapshot.projectId(), data.brief, data.plan);
-            finalizePipeline(workpackId, title, ownerId, content, data, handoff);
+            self.finalizePipeline(workpackId, title, ownerId, content, data, handoff);
         } catch (Exception e) {
             String reason = e.getMessage() != null ? e.getMessage()
                 : e.getClass().getSimpleName() + " — check server logs";
-            markFailed(workpackId, reason);
+            self.markFailed(workpackId, reason);
         }
     }
 
@@ -140,11 +145,11 @@ public class WorkpackService {
             PipelineData data = runPipeline(workpackId, title, content);
             HandoffPackage handoff = coreHandoffService.create(
                 data.snapshot.projectId(), data.brief, data.plan);
-            finalizeReshape(workpackId, data, handoff);
+            self.finalizeReshape(workpackId, data, handoff);
         } catch (Exception e) {
             String reason = e.getMessage() != null ? e.getMessage()
                 : e.getClass().getSimpleName() + " — check server logs";
-            markFailed(workpackId, reason);
+            self.markFailed(workpackId, reason);
         }
     }
 
