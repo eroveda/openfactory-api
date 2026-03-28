@@ -25,7 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
-import org.eclipse.microprofile.context.ManagedExecutor;
+import java.util.concurrent.CompletableFuture;
 
 import io.openfactory.api.attachment.model.Attachment;
 import io.openfactory.api.pin.model.Pin;
@@ -56,9 +56,6 @@ public class WorkpackService {
 
     @Inject
     ExecutionPlanner executionPlanner;
-
-    @Inject
-    ManagedExecutor executor;
 
     // -----------------------------------------------------------------------
     // Pipeline — ingest async
@@ -134,7 +131,7 @@ public class WorkpackService {
         w.persist();
         String title   = w.title;
         String content = w.sourceContent;
-        executor.runAsync(() -> runReshapeAsync(id, title, content));
+        CompletableFuture.runAsync(() -> runReshapeAsync(id, title, content));
         return w;
     }
 
