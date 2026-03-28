@@ -90,7 +90,9 @@ public class WorkpackService {
                 data.snapshot.projectId(), data.brief, data.plan);
             finalizePipeline(workpackId, title, ownerId, content, data, handoff);
         } catch (Exception e) {
-            markFailed(workpackId, e.getMessage());
+            String reason = e.getMessage() != null ? e.getMessage()
+                : e.getClass().getSimpleName() + " — check server logs";
+            markFailed(workpackId, reason);
         }
     }
 
@@ -143,7 +145,9 @@ public class WorkpackService {
                 data.snapshot.projectId(), data.brief, data.plan);
             finalizeReshape(workpackId, data, handoff);
         } catch (Exception e) {
-            markFailed(workpackId, e.getMessage());
+            String reason = e.getMessage() != null ? e.getMessage()
+                : e.getClass().getSimpleName() + " — check server logs";
+            markFailed(workpackId, reason);
         }
     }
 
