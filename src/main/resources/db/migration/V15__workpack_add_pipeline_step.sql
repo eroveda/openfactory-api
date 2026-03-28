@@ -1,0 +1,1 @@
+ALTER TABLE workpacks ADD COLUMN IF NOT EXISTS pipeline_step TEXT;

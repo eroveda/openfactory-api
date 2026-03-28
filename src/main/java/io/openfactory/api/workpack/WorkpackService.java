@@ -114,6 +114,16 @@ public class WorkpackService {
         if (w != null) {
             w.processingStatus = ProcessingStatus.FAILED;
             w.failureReason    = reason;
+            w.pipelineStep     = null;
+            w.persist();
+        }
+    }
+
+    @Transactional
+    public void updatePipelineStep(UUID workpackId, String step) {
+        Workpack w = Workpack.findById(workpackId);
+        if (w != null) {
+            w.pipelineStep = step;
             w.persist();
         }
     }
@@ -158,6 +168,7 @@ public class WorkpackService {
         Workpack w = Workpack.findById(workpackId);
         mapper.replaceChildren(w, data.brief, data.plan, data.boxes, handoff);
         w.processingStatus = ProcessingStatus.DONE;
+        w.pipelineStep     = null;
         w.persist();
     }
 
@@ -332,16 +343,24 @@ public class WorkpackService {
         String sessionId = UUID.randomUUID().toString();
         String projectId = UUID.randomUUID().toString();
 
+        self.updatePipelineStep(workpackId, "Analyzing content…");
         List<SessionMessage> messages = buildSources(workpackId, sourceContent);
-
         IngestionSnapshot snapshot  = ingestionService.buildSnapshot(sessionId, projectId, messages);
         SourceDocument    sourceDoc = ingestionService.buildSourceDocument(snapshot);
-        IdeaBrief         brief     = briefBuilder.build(snapshot, sourceDoc);
-        NodeTree          outline   = outlineService.generateOutline(sourceDoc);
-        BoxGenerationResult boxResult = boxGenerator.generateFromTree(outline, sourceDoc);
-        ExecutionPlan     plan      = executionPlanner.plan(
-            boxResult.boxes(), outline, snapshot.projectId());
 
+        self.updatePipelineStep(workpackId, "Evaluating brief…");
+        IdeaBrief brief = briefBuilder.build(snapshot, sourceDoc);
+
+        self.updatePipelineStep(workpackId, "Generating outline…");
+        NodeTree outline = outlineService.generateOutline(sourceDoc);
+
+        self.updatePipelineStep(workpackId, "Creating work boxes…");
+        BoxGenerationResult boxResult = boxGenerator.generateFromTree(outline, sourceDoc);
+
+        self.updatePipelineStep(workpackId, "Planning execution sequence…");
+        ExecutionPlan plan = executionPlanner.plan(boxResult.boxes(), outline, snapshot.projectId());
+
+        self.updatePipelineStep(workpackId, "Packaging handoff…");
         return new PipelineData(snapshot, sourceDoc, brief, outline, boxResult.boxes(), plan);
     }
 }

@@ -55,6 +55,9 @@ public class Workpack extends PanacheEntityBase {
     @Column(name = "failure_reason", columnDefinition = "TEXT")
     public String failureReason;
 
+    @Column(name = "pipeline_step", columnDefinition = "TEXT")
+    public String pipelineStep;
+
     @Column(name = "created_at")
     public LocalDateTime createdAt = LocalDateTime.now();
 
